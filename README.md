@@ -70,9 +70,9 @@ cmake --build --preset debug
 ctest --preset debug
 ```
 
-On Windows, install Qt 6.8.3 for MSVC x64, then run the following commands from
-an x64 Native Tools PowerShell for Visual Studio. The setup script downloads a
-pinned libmpv SDK and verifies its SHA-256 digest.
+On Windows, install Visual Studio 2022 with the MSVC x64 tools and Qt 6.8.3 for
+MSVC x64, then run the following commands from PowerShell. The setup script
+downloads a pinned libmpv SDK and verifies its SHA-256 digest.
 
 ```powershell
 cmake -DOUTPUT_DIR="$PWD/.deps/mpv" -P cmake/DownloadMpvWindows.cmake

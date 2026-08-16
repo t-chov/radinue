@@ -66,9 +66,10 @@ cmake --build --preset debug
 ctest --preset debug
 ```
 
-Windows では MSVC x64 用の Qt 6.8.3 をインストールし、Visual Studio の x64
-Native Tools PowerShell で次のコマンドを実行してください。セットアップスクリプトは
-固定バージョンの libmpv SDK をダウンロードし、SHA-256 ダイジェストを検証します。
+Windows では MSVC x64 ツールを含む Visual Studio 2022 と MSVC x64 用の
+Qt 6.8.3 をインストールし、PowerShell で次のコマンドを実行してください。
+セットアップスクリプトは固定バージョンの libmpv SDK をダウンロードし、SHA-256
+ダイジェストを検証します。
 
 ```powershell
 cmake -DOUTPUT_DIR="$PWD/.deps/mpv" -P cmake/DownloadMpvWindows.cmake
