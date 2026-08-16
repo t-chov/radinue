@@ -1,0 +1,5 @@
+qt_add_executable(playback_settings_test PlaybackSettingsTest.cpp)
+target_link_libraries(playback_settings_test PRIVATE radinue_core Qt6::Test)
+radinue_set_warnings(playback_settings_test)
+
+add_test(NAME playback_settings COMMAND playback_settings_test)

@@ -7,8 +7,8 @@ Radinue は、ディレクトリに保存したラジオ録音を聴くための
 前回停止した場所から正確に再開できます。
 
 > [!NOTE]
-> Radinue は開発初期段階です。現在、利用可能なリリースや正式なビルド手順は
-> ありません。
+> Radinue は開発初期段階です。現在のリポジトリでは最小限のアプリケーションを
+> ビルドできますが、プレイヤーとして利用可能なリリースはまだありません。
 
 ## 実装予定の機能
 
@@ -49,13 +49,46 @@ Radinue は、意図的に小さく保った次のネイティブ技術構成を
 
 ## ビルド
 
-ビルドシステムはまだ追加されていません。アプリケーションの初期構成が整い次第、
-ビルド手順と開発手順をこのセクションに記載します。
+### 必要な環境
+
+- CMake 3.25 以降
+- C++20 対応コンパイラ（macOS は Apple Clang、Windows は MSVC）
+- Widgets・Test コンポーネントを含む Qt 6.8 以降
+- libmpv の開発用ヘッダーとライブラリ
+- 開発者向けプリセットで使用する Ninja
+
+macOS では、Homebrew を使って必要なパッケージをインストールできます。
+
+```sh
+brew install cmake ninja qt mpv
+cmake --preset debug -DCMAKE_PREFIX_PATH="$(brew --prefix qt)"
+cmake --build --preset debug
+ctest --preset debug
+```
+
+Windows では MSVC x64 用の Qt 6.8.3 をインストールし、Visual Studio の x64
+Native Tools PowerShell で次のコマンドを実行してください。セットアップスクリプトは
+固定バージョンの libmpv SDK をダウンロードし、SHA-256 ダイジェストを検証します。
+
+```powershell
+cmake -DOUTPUT_DIR="$PWD/.deps/mpv" -P cmake/DownloadMpvWindows.cmake
+./scripts/CreateMpvImportLibrary.ps1 -MpvRoot "$PWD/.deps/mpv"
+cmake --preset ci-windows
+cmake --build --preset ci-windows --parallel
+ctest --preset ci-windows
+```
+
+Qt が CMake の標準検索パスにない場合は、ローカルの `CMakeUserPresets.json` に
+`CMAKE_PREFIX_PATH` を設定するか、configure コマンドに指定してください。このファイルは
+Git の管理対象外なので、ローカルパスがコミットされることはありません。
 
 対応予定のプラットフォームは次のとおりです。
 
 - Windows（MSVC によるネイティブビルド）
 - macOS（Apple Clang によるネイティブビルド）
+
+GitHub Actions は、すべてのプルリクエストと `main` への push に対して、両方の
+プラットフォームでアプリケーションをビルドし、テストを実行します。
 
 ## コントリビューション
 
@@ -67,3 +100,6 @@ Radinue は、安定性、予測可能な動作、小さなメンテナンス範
 
 Radinue は [GNU General Public License v3.0 or later](LICENSE) のもとで
 公開される自由ソフトウェアです。
+
+依存関係のライセンスと入手元については
+[THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md) を参照してください。
