@@ -1,4 +1,10 @@
-add_library(radinue_core STATIC core/PlaybackSettings.cpp core/PlaybackSettings.h)
+add_library(
+    radinue_core STATIC
+    core/DirectoryPlaylist.cpp
+    core/DirectoryPlaylist.h
+    core/PlaybackSettings.cpp
+    core/PlaybackSettings.h
+)
 target_include_directories(radinue_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(radinue_core PUBLIC Qt6::Core)
 radinue_set_warnings(radinue_core)

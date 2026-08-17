@@ -10,10 +10,18 @@ track and playback position so that you can resume exactly where you stopped.
 > Radinue is in the early stages of development. The repository builds a small
 > application shell, but there is no usable player release yet.
 
-## Planned features
+## Current status
 
-- Treat one selected directory as a playlist, without scanning subdirectories
-- Sort tracks deterministically by filename in ascending or descending order
+- Select a directory and display its directly contained audio files
+- Filter files through an explicit, case-insensitive extension allowlist
+- Ignore subdirectories, symbolic links, state files, and unsupported files
+- Sort filenames deterministically in ascending or descending order
+
+Supported extensions are `.aac`, `.flac`, `.m4a`, `.mka`, `.mp3`, `.ogg`,
+`.opus`, `.wav`, and `.wma`.
+
+## Planned playback features
+
 - Automatically advance to the next track without wrapping at playlist ends
 - Save the current track and position in a human-readable file inside the
   playlist directory
@@ -68,6 +76,18 @@ brew install cmake ninja qt mpv
 cmake --preset debug -DCMAKE_PREFIX_PATH="$(brew --prefix qt)"
 cmake --build --preset debug
 ctest --preset debug
+```
+
+Open the built application and choose a directory in the window:
+
+```sh
+open build/debug/src/radinue.app
+```
+
+A directory may also be supplied when launching a development build:
+
+```sh
+open build/debug/src/radinue.app --args "/path/to/recordings"
 ```
 
 On Windows, install Visual Studio 2022 with the MSVC x64 tools and Qt 6.8.3 for

@@ -10,6 +10,10 @@ int main(int argc, char *argv[]) {
     QCoreApplication::setOrganizationName(QStringLiteral("Radinue"));
 
     radinue::MainWindow mainWindow;
+    const QStringList arguments = application.arguments();
+    if (arguments.size() == 2) {
+        mainWindow.openDirectory(arguments.at(1));
+    }
     mainWindow.show();
     return application.exec();
 }
