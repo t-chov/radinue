@@ -13,6 +13,7 @@ namespace {
 constexpr uint64_t positionProperty = 1;
 constexpr uint64_t durationProperty = 2;
 constexpr uint64_t pauseProperty = 3;
+constexpr uint64_t speedProperty = 4;
 
 qint64 secondsToMilliseconds(double seconds) {
     return qMax<qint64>(0, qRound64(seconds * 1000.0));
@@ -29,6 +30,13 @@ PlayerController::PlayerController(QObject *parent) : QObject(parent), m_mpv(mpv
     const int videoResult = mpv_set_option_string(m_mpv, "video", "no");
     if (videoResult < 0) {
         qWarning() << "Could not disable video output:" << mpv_error_string(videoResult);
+    }
+
+    const int pitchCorrectionResult =
+        mpv_set_option_string(m_mpv, "audio-pitch-correction", "yes");
+    if (pitchCorrectionResult < 0) {
+        qWarning() << "Could not enable pitch correction:"
+                   << mpv_error_string(pitchCorrectionResult);
     }
 
     const int result = mpv_initialize(m_mpv);
@@ -49,6 +57,7 @@ PlayerController::PlayerController(QObject *parent) : QObject(parent), m_mpv(mpv
     observe(positionProperty, "time-pos", MPV_FORMAT_DOUBLE);
     observe(durationProperty, "duration", MPV_FORMAT_DOUBLE);
     observe(pauseProperty, "pause", MPV_FORMAT_FLAG);
+    observe(speedProperty, "speed", MPV_FORMAT_DOUBLE);
     mpv_set_wakeup_callback(m_mpv, &PlayerController::wakeup, this);
 }
 
@@ -68,6 +77,8 @@ bool PlayerController::isPaused() const noexcept { return m_paused; }
 qint64 PlayerController::positionMs() const noexcept { return m_positionMs; }
 
 qint64 PlayerController::durationMs() const noexcept { return m_durationMs; }
+
+int PlayerController::speedPercent() const noexcept { return m_speedPercent; }
 
 bool PlayerController::loadFile(const QString &filePath, bool paused) {
     if (m_mpv == nullptr || filePath.isEmpty()) {
@@ -125,6 +136,22 @@ void PlayerController::seekAbsolute(qint64 positionMs) {
     sendCommand(arguments);
 }
 
+void PlayerController::setSpeedPercent(int speedPercent) {
+    if (m_mpv == nullptr || speedPercent <= 0) {
+        return;
+    }
+
+    double speed = static_cast<double>(speedPercent) / 100.0;
+    const int result = mpv_set_property(m_mpv, "speed", MPV_FORMAT_DOUBLE, &speed);
+    if (result < 0) {
+        reportMpvError(tr("change playback speed"), result);
+        return;
+    }
+
+    m_speedPercent = speedPercent;
+    emit speedChanged(m_speedPercent);
+}
+
 void PlayerController::wakeup(void *context) {
     auto *controller = static_cast<PlayerController *>(context);
     QMetaObject::invokeMethod(controller, &PlayerController::processEvents, Qt::QueuedConnection);
@@ -172,6 +199,10 @@ void PlayerController::processEvents() {
         } else if (event->reply_userdata == pauseProperty && property->format == MPV_FORMAT_FLAG) {
             m_paused = *static_cast<int *>(property->data) != 0;
             emit pauseChanged(m_paused);
+        } else if (event->reply_userdata == speedProperty && property->format == MPV_FORMAT_DOUBLE) {
+            const double speed = *static_cast<double *>(property->data);
+            m_speedPercent = qRound(speed * 100.0);
+            emit speedChanged(m_speedPercent);
         }
     }
 }

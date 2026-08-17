@@ -1,6 +1,7 @@
 #pragma once
 
 #include "core/DirectoryPlaylist.h"
+#include "core/PlaybackSettings.h"
 #include "player/PlayerController.h"
 
 #include <QMainWindow>
@@ -35,10 +36,16 @@ class MainWindow final : public QMainWindow {
     void updateDuration(qint64 durationMs);
     void seekFromSlider();
     void showSliderPreview(int value);
+    void decreaseSpeed();
+    void increaseSpeed();
+    void resetSpeed();
+    void applySpeed();
+    void updateSpeedDisplay(int speedPercent);
     [[nodiscard]] DirectoryPlaylist::SortDirection selectedSortDirection() const;
     [[nodiscard]] static QString formatTime(qint64 milliseconds);
 
     DirectoryPlaylist m_playlist;
+    PlaybackSettings m_playbackSettings;
     PlayerController m_player;
     QLabel *m_directoryLabel = nullptr;
     QListWidget *m_trackList = nullptr;
@@ -52,6 +59,9 @@ class MainWindow final : public QMainWindow {
     QPushButton *m_playPauseButton = nullptr;
     QPushButton *m_seekForwardButton = nullptr;
     QPushButton *m_nextButton = nullptr;
+    QPushButton *m_decreaseSpeedButton = nullptr;
+    QPushButton *m_increaseSpeedButton = nullptr;
+    QLabel *m_speedLabel = nullptr;
     QSlider *m_seekSlider = nullptr;
     qint64 m_durationMs = 0;
 };

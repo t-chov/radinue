@@ -115,6 +115,33 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
     transportLayout->addStretch();
     mainLayout->addLayout(transportLayout);
 
+    auto *speedLayout = new QHBoxLayout;
+    speedLayout->addStretch();
+
+    m_decreaseSpeedButton = new QPushButton(QStringLiteral("−"), centralWidget);
+    m_decreaseSpeedButton->setObjectName(QStringLiteral("decreaseSpeedButton"));
+    m_decreaseSpeedButton->setAccessibleName(tr("Decrease playback speed"));
+    m_decreaseSpeedButton->setToolTip(tr("Decrease playback speed by 10% (S)"));
+    m_decreaseSpeedButton->setAutoDefault(false);
+    speedLayout->addWidget(m_decreaseSpeedButton);
+
+    m_speedLabel = new QLabel(centralWidget);
+    m_speedLabel->setObjectName(QStringLiteral("speedLabel"));
+    m_speedLabel->setAccessibleName(tr("Playback speed"));
+    m_speedLabel->setAlignment(Qt::AlignCenter);
+    m_speedLabel->setMinimumWidth(110);
+    speedLayout->addWidget(m_speedLabel);
+
+    m_increaseSpeedButton = new QPushButton(QStringLiteral("+"), centralWidget);
+    m_increaseSpeedButton->setObjectName(QStringLiteral("increaseSpeedButton"));
+    m_increaseSpeedButton->setAccessibleName(tr("Increase playback speed"));
+    m_increaseSpeedButton->setToolTip(tr("Increase playback speed by 10% (D)"));
+    m_increaseSpeedButton->setAutoDefault(false);
+    speedLayout->addWidget(m_increaseSpeedButton);
+
+    speedLayout->addStretch();
+    mainLayout->addLayout(speedLayout);
+
     m_statusLabel = new QLabel(centralWidget);
     m_statusLabel->setAccessibleName(tr("Playlist status"));
     m_statusLabel->setText(m_player.isAvailable() ? tr("Choose a directory to begin.")
@@ -126,6 +153,9 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
     auto *seekBackwardShortcut = new QShortcut(QKeySequence(Qt::Key_Z), this);
     auto *seekForwardShortcut = new QShortcut(QKeySequence(Qt::Key_X), this);
     auto *playPauseShortcut = new QShortcut(QKeySequence(Qt::Key_Space), this);
+    auto *decreaseSpeedShortcut = new QShortcut(QKeySequence(Qt::Key_S), this);
+    auto *increaseSpeedShortcut = new QShortcut(QKeySequence(Qt::Key_D), this);
+    auto *resetSpeedShortcut = new QShortcut(QKeySequence(Qt::Key_G), this);
 
     connect(chooseDirectoryButton, &QPushButton::clicked, this, &MainWindow::chooseDirectory);
     connect(m_sortOrderCombo, &QComboBox::currentIndexChanged, this, &MainWindow::reloadDirectory);
@@ -149,12 +179,19 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
     connect(m_seekForwardButton, &QPushButton::clicked, this,
             [this] { m_player.seekRelative(10000); });
     connect(m_nextButton, &QPushButton::clicked, this, &MainWindow::nextTrack);
+    connect(m_decreaseSpeedButton, &QPushButton::clicked, this, &MainWindow::decreaseSpeed);
+    connect(m_increaseSpeedButton, &QPushButton::clicked, this, &MainWindow::increaseSpeed);
     connect(m_seekSlider, &QSlider::sliderReleased, this, &MainWindow::seekFromSlider);
     connect(m_seekSlider, &QSlider::sliderMoved, this, &MainWindow::showSliderPreview);
     connect(seekBackwardShortcut, &QShortcut::activated, m_seekBackwardButton,
             &QPushButton::click);
     connect(seekForwardShortcut, &QShortcut::activated, m_seekForwardButton, &QPushButton::click);
     connect(playPauseShortcut, &QShortcut::activated, m_playPauseButton, &QPushButton::click);
+    connect(decreaseSpeedShortcut, &QShortcut::activated, m_decreaseSpeedButton,
+            &QPushButton::click);
+    connect(increaseSpeedShortcut, &QShortcut::activated, m_increaseSpeedButton,
+            &QPushButton::click);
+    connect(resetSpeedShortcut, &QShortcut::activated, this, &MainWindow::resetSpeed);
 
     connect(&m_player, &PlayerController::pauseChanged, this, [this](bool paused) {
         m_playPauseButton->setIcon(
@@ -163,10 +200,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
     });
     connect(&m_player, &PlayerController::positionChanged, this, &MainWindow::updatePosition);
     connect(&m_player, &PlayerController::durationChanged, this, &MainWindow::updateDuration);
+    connect(&m_player, &PlayerController::speedChanged, this, &MainWindow::updateSpeedDisplay);
     connect(&m_player, &PlayerController::endOfFile, this, &MainWindow::handleEndOfFile);
     connect(&m_player, &PlayerController::errorOccurred, this,
             [this](const QString &message) { m_statusLabel->setText(message); });
 
+    applySpeed();
     updateTransportControls();
 }
 
@@ -284,6 +323,12 @@ void MainWindow::updateTransportControls() {
     m_seekForwardButton->setEnabled(canSeek);
     m_nextButton->setEnabled(playbackAvailable && m_playlist.hasNext());
     m_seekSlider->setEnabled(canSeek && m_durationMs > 0);
+    m_decreaseSpeedButton->setEnabled(
+        playbackAvailable &&
+        m_playbackSettings.speedPercent() > PlaybackSettings::minimumSpeedPercent);
+    m_increaseSpeedButton->setEnabled(
+        playbackAvailable &&
+        m_playbackSettings.speedPercent() < PlaybackSettings::maximumSpeedPercent);
 }
 
 void MainWindow::updatePosition(qint64 positionMs) {
@@ -313,6 +358,34 @@ void MainWindow::showSliderPreview(int value) {
     if (m_durationMs > 0) {
         m_elapsedLabel->setText(formatTime((m_durationMs * value) / 1000));
     }
+}
+
+void MainWindow::decreaseSpeed() {
+    m_playbackSettings.decreaseSpeed();
+    applySpeed();
+}
+
+void MainWindow::increaseSpeed() {
+    m_playbackSettings.increaseSpeed();
+    applySpeed();
+}
+
+void MainWindow::resetSpeed() {
+    m_playbackSettings.resetSpeed();
+    applySpeed();
+}
+
+void MainWindow::applySpeed() {
+    m_player.setSpeedPercent(m_playbackSettings.speedPercent());
+    updateSpeedDisplay(m_playbackSettings.speedPercent());
+}
+
+void MainWindow::updateSpeedDisplay(int speedPercent) {
+    const QString speed =
+        QString::number(static_cast<double>(speedPercent) / 100.0, 'f', 1);
+    m_speedLabel->setText(tr("Speed: %1×").arg(speed));
+    m_speedLabel->setAccessibleName(tr("Playback speed: %1 times").arg(speed));
+    updateTransportControls();
 }
 
 QString MainWindow::formatTime(qint64 milliseconds) {

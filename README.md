@@ -18,6 +18,7 @@ track and playback position so that you can resume exactly where you stopped.
 - Sort filenames deterministically in ascending or descending order
 - Play or pause, seek by 10 seconds, and move between tracks with icon buttons
 - View and change the playback position with a seek bar
+- Change playback speed from 50% to 200% in exact 10% steps, with pitch correction
 
 Supported extensions are `.aac`, `.flac`, `.m4a`, `.mka`, `.mp3`, `.ogg`,
 `.opus`, `.wav`, and `.wma`.
@@ -28,8 +29,6 @@ Supported extensions are `.aac`, `.flac`, `.m4a`, `.mka`, `.mp3`, `.ogg`,
 - Save the current track and position in a human-readable file inside the
   playlist directory
 - Restore playback from the saved position when the directory is opened again
-- Change playback speed from 50% to 200% in exact 10% steps, with pitch
-  correction
 - Adjust volume from 0% to 200%
 - Continue playback gracefully when individual files are malformed or
   unsupported

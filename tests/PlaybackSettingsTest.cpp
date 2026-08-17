@@ -8,6 +8,7 @@ class PlaybackSettingsTest final : public QObject {
   private slots:
     void defaultsAreOneHundredPercent();
     void speedChangesInExactTenPercentSteps();
+    void speedTraversesEverySupportedStep();
     void speedIsClampedToSupportedRange();
     void speedCanBeReset();
     void volumeIsClampedToSupportedRange_data();
@@ -30,6 +31,21 @@ void PlaybackSettingsTest::speedChangesInExactTenPercentSteps() {
     settings.increaseSpeed();
     settings.increaseSpeed();
     QCOMPARE(settings.speedPercent(), 110);
+}
+
+void PlaybackSettingsTest::speedTraversesEverySupportedStep() {
+    radinue::PlaybackSettings settings;
+    while (settings.speedPercent() > radinue::PlaybackSettings::minimumSpeedPercent) {
+        settings.decreaseSpeed();
+    }
+
+    int expectedSpeed = radinue::PlaybackSettings::minimumSpeedPercent;
+    QCOMPARE(settings.speedPercent(), expectedSpeed);
+    while (expectedSpeed < radinue::PlaybackSettings::maximumSpeedPercent) {
+        settings.increaseSpeed();
+        expectedSpeed += radinue::PlaybackSettings::speedStepPercent;
+        QCOMPARE(settings.speedPercent(), expectedSpeed);
+    }
 }
 
 void PlaybackSettingsTest::speedIsClampedToSupportedRange() {
