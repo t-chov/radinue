@@ -9,6 +9,7 @@
 #include <QMessageBox>
 #include <QPushButton>
 #include <QShortcut>
+#include <QSignalBlocker>
 #include <QSlider>
 #include <QStandardPaths>
 #include <QStyle>
@@ -139,6 +140,28 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
     m_increaseSpeedButton->setAutoDefault(false);
     speedLayout->addWidget(m_increaseSpeedButton);
 
+    speedLayout->addSpacing(24);
+
+    auto *volumeLabel = new QLabel(tr("Volume:"), centralWidget);
+    speedLayout->addWidget(volumeLabel);
+
+    m_volumeSlider = new QSlider(Qt::Horizontal, centralWidget);
+    m_volumeSlider->setObjectName(QStringLiteral("volumeSlider"));
+    m_volumeSlider->setRange(PlaybackSettings::minimumVolumePercent,
+                             PlaybackSettings::maximumVolumePercent);
+    m_volumeSlider->setPageStep(10);
+    m_volumeSlider->setMinimumWidth(150);
+    m_volumeSlider->setAccessibleName(tr("Volume"));
+    m_volumeSlider->setToolTip(
+        tr("Volume from 0% to 200%; values above 100% may clip"));
+    speedLayout->addWidget(m_volumeSlider);
+
+    m_volumeValueLabel = new QLabel(centralWidget);
+    m_volumeValueLabel->setObjectName(QStringLiteral("volumeValueLabel"));
+    m_volumeValueLabel->setAlignment(Qt::AlignRight | Qt::AlignVCenter);
+    m_volumeValueLabel->setMinimumWidth(42);
+    speedLayout->addWidget(m_volumeValueLabel);
+
     speedLayout->addStretch();
     mainLayout->addLayout(speedLayout);
 
@@ -181,6 +204,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
     connect(m_nextButton, &QPushButton::clicked, this, &MainWindow::nextTrack);
     connect(m_decreaseSpeedButton, &QPushButton::clicked, this, &MainWindow::decreaseSpeed);
     connect(m_increaseSpeedButton, &QPushButton::clicked, this, &MainWindow::increaseSpeed);
+    connect(m_volumeSlider, &QSlider::valueChanged, this, [this](int volumePercent) {
+        m_playbackSettings.setVolumePercent(volumePercent);
+        m_player.setVolumePercent(m_playbackSettings.volumePercent());
+    });
     connect(m_seekSlider, &QSlider::sliderReleased, this, &MainWindow::seekFromSlider);
     connect(m_seekSlider, &QSlider::sliderMoved, this, &MainWindow::showSliderPreview);
     connect(seekBackwardShortcut, &QShortcut::activated, m_seekBackwardButton,
@@ -201,11 +228,13 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
     connect(&m_player, &PlayerController::positionChanged, this, &MainWindow::updatePosition);
     connect(&m_player, &PlayerController::durationChanged, this, &MainWindow::updateDuration);
     connect(&m_player, &PlayerController::speedChanged, this, &MainWindow::updateSpeedDisplay);
+    connect(&m_player, &PlayerController::volumeChanged, this, &MainWindow::updateVolumeDisplay);
     connect(&m_player, &PlayerController::endOfFile, this, &MainWindow::handleEndOfFile);
     connect(&m_player, &PlayerController::errorOccurred, this,
             [this](const QString &message) { m_statusLabel->setText(message); });
 
     applySpeed();
+    applyVolume();
     updateTransportControls();
 }
 
@@ -329,6 +358,7 @@ void MainWindow::updateTransportControls() {
     m_increaseSpeedButton->setEnabled(
         playbackAvailable &&
         m_playbackSettings.speedPercent() < PlaybackSettings::maximumSpeedPercent);
+    m_volumeSlider->setEnabled(playbackAvailable);
 }
 
 void MainWindow::updatePosition(qint64 positionMs) {
@@ -386,6 +416,20 @@ void MainWindow::updateSpeedDisplay(int speedPercent) {
     m_speedLabel->setText(tr("Speed: %1×").arg(speed));
     m_speedLabel->setAccessibleName(tr("Playback speed: %1 times").arg(speed));
     updateTransportControls();
+}
+
+void MainWindow::applyVolume() {
+    m_player.setVolumePercent(m_playbackSettings.volumePercent());
+    updateVolumeDisplay(m_playbackSettings.volumePercent());
+}
+
+void MainWindow::updateVolumeDisplay(int volumePercent) {
+    m_playbackSettings.setVolumePercent(volumePercent);
+    const int effectiveVolume = m_playbackSettings.volumePercent();
+    const QSignalBlocker blocker(m_volumeSlider);
+    m_volumeSlider->setValue(effectiveVolume);
+    m_volumeValueLabel->setText(tr("%1%").arg(effectiveVolume));
+    m_volumeValueLabel->setAccessibleName(tr("Current volume: %1 percent").arg(effectiveVolume));
 }
 
 QString MainWindow::formatTime(qint64 milliseconds) {

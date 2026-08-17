@@ -14,6 +14,7 @@ constexpr uint64_t positionProperty = 1;
 constexpr uint64_t durationProperty = 2;
 constexpr uint64_t pauseProperty = 3;
 constexpr uint64_t speedProperty = 4;
+constexpr uint64_t volumeProperty = 5;
 
 qint64 secondsToMilliseconds(double seconds) {
     return qMax<qint64>(0, qRound64(seconds * 1000.0));
@@ -39,6 +40,11 @@ PlayerController::PlayerController(QObject *parent) : QObject(parent), m_mpv(mpv
                    << mpv_error_string(pitchCorrectionResult);
     }
 
+    const int volumeMaxResult = mpv_set_option_string(m_mpv, "volume-max", "200");
+    if (volumeMaxResult < 0) {
+        qWarning() << "Could not configure maximum volume:" << mpv_error_string(volumeMaxResult);
+    }
+
     const int result = mpv_initialize(m_mpv);
     if (result < 0) {
         qWarning() << "Could not initialize libmpv:" << mpv_error_string(result);
@@ -58,6 +64,7 @@ PlayerController::PlayerController(QObject *parent) : QObject(parent), m_mpv(mpv
     observe(durationProperty, "duration", MPV_FORMAT_DOUBLE);
     observe(pauseProperty, "pause", MPV_FORMAT_FLAG);
     observe(speedProperty, "speed", MPV_FORMAT_DOUBLE);
+    observe(volumeProperty, "volume", MPV_FORMAT_DOUBLE);
     mpv_set_wakeup_callback(m_mpv, &PlayerController::wakeup, this);
 }
 
@@ -79,6 +86,8 @@ qint64 PlayerController::positionMs() const noexcept { return m_positionMs; }
 qint64 PlayerController::durationMs() const noexcept { return m_durationMs; }
 
 int PlayerController::speedPercent() const noexcept { return m_speedPercent; }
+
+int PlayerController::volumePercent() const noexcept { return m_volumePercent; }
 
 bool PlayerController::loadFile(const QString &filePath, bool paused) {
     if (m_mpv == nullptr || filePath.isEmpty()) {
@@ -152,6 +161,22 @@ void PlayerController::setSpeedPercent(int speedPercent) {
     emit speedChanged(m_speedPercent);
 }
 
+void PlayerController::setVolumePercent(int volumePercent) {
+    if (m_mpv == nullptr || volumePercent < 0) {
+        return;
+    }
+
+    double volume = static_cast<double>(volumePercent);
+    const int result = mpv_set_property(m_mpv, "volume", MPV_FORMAT_DOUBLE, &volume);
+    if (result < 0) {
+        reportMpvError(tr("change volume"), result);
+        return;
+    }
+
+    m_volumePercent = volumePercent;
+    emit volumeChanged(m_volumePercent);
+}
+
 void PlayerController::wakeup(void *context) {
     auto *controller = static_cast<PlayerController *>(context);
     QMetaObject::invokeMethod(controller, &PlayerController::processEvents, Qt::QueuedConnection);
@@ -203,6 +228,11 @@ void PlayerController::processEvents() {
             const double speed = *static_cast<double *>(property->data);
             m_speedPercent = qRound(speed * 100.0);
             emit speedChanged(m_speedPercent);
+        } else if (event->reply_userdata == volumeProperty &&
+                   property->format == MPV_FORMAT_DOUBLE) {
+            const double volume = *static_cast<double *>(property->data);
+            m_volumePercent = qRound(volume);
+            emit volumeChanged(m_volumePercent);
         }
     }
 }

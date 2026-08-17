@@ -25,6 +25,7 @@ class PlayerController final : public QObject {
     [[nodiscard]] qint64 positionMs() const noexcept;
     [[nodiscard]] qint64 durationMs() const noexcept;
     [[nodiscard]] int speedPercent() const noexcept;
+    [[nodiscard]] int volumePercent() const noexcept;
 
     bool loadFile(const QString &filePath, bool paused = true);
     void togglePause();
@@ -32,6 +33,7 @@ class PlayerController final : public QObject {
     void seekRelative(qint64 offsetMs);
     void seekAbsolute(qint64 positionMs);
     void setSpeedPercent(int speedPercent);
+    void setVolumePercent(int volumePercent);
 
   signals:
     void errorOccurred(const QString &message);
@@ -40,6 +42,7 @@ class PlayerController final : public QObject {
     void positionChanged(qint64 positionMs);
     void durationChanged(qint64 durationMs);
     void speedChanged(int speedPercent);
+    void volumeChanged(int volumePercent);
     void endOfFile();
 
   private:
@@ -54,6 +57,7 @@ class PlayerController final : public QObject {
     qint64 m_positionMs = 0;
     qint64 m_durationMs = 0;
     int m_speedPercent = 100;
+    int m_volumePercent = 100;
 };
 
 } // namespace radinue

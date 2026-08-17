@@ -41,6 +41,8 @@ class MainWindow final : public QMainWindow {
     void resetSpeed();
     void applySpeed();
     void updateSpeedDisplay(int speedPercent);
+    void applyVolume();
+    void updateVolumeDisplay(int volumePercent);
     [[nodiscard]] DirectoryPlaylist::SortDirection selectedSortDirection() const;
     [[nodiscard]] static QString formatTime(qint64 milliseconds);
 
@@ -63,6 +65,8 @@ class MainWindow final : public QMainWindow {
     QPushButton *m_increaseSpeedButton = nullptr;
     QLabel *m_speedLabel = nullptr;
     QSlider *m_seekSlider = nullptr;
+    QSlider *m_volumeSlider = nullptr;
+    QLabel *m_volumeValueLabel = nullptr;
     qint64 m_durationMs = 0;
 };
 

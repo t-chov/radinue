@@ -79,6 +79,7 @@ void PlaybackSettingsTest::volumeIsClampedToSupportedRange_data() {
     QTest::newRow("below minimum") << -1 << 0;
     QTest::newRow("minimum") << 0 << 0;
     QTest::newRow("normal") << 75 << 75;
+    QTest::newRow("software amplification") << 150 << 150;
     QTest::newRow("maximum") << 200 << 200;
     QTest::newRow("above maximum") << 201 << 200;
 }
