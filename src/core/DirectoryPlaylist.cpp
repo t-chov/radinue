@@ -80,6 +80,7 @@ bool DirectoryPlaylist::openDirectory(const QString &directoryPath, SortDirectio
 
     m_directoryPath = directory.absolutePath();
     m_fileNames = fileNames;
+    m_currentIndex = m_fileNames.isEmpty() ? -1 : 0;
     return true;
 }
 
@@ -88,5 +89,42 @@ const QString &DirectoryPlaylist::directoryPath() const noexcept { return m_dire
 const QStringList &DirectoryPlaylist::fileNames() const noexcept { return m_fileNames; }
 
 const QString &DirectoryPlaylist::errorString() const noexcept { return m_errorString; }
+
+qsizetype DirectoryPlaylist::currentIndex() const noexcept { return m_currentIndex; }
+
+QString DirectoryPlaylist::currentFileName() const {
+    return m_currentIndex >= 0 && m_currentIndex < m_fileNames.size()
+               ? m_fileNames.at(m_currentIndex)
+               : QString{};
+}
+
+QString DirectoryPlaylist::currentFilePath() const {
+    const QString fileName = currentFileName();
+    return fileName.isEmpty() ? QString{} : QDir(m_directoryPath).filePath(fileName);
+}
+
+bool DirectoryPlaylist::hasPrevious() const noexcept { return m_currentIndex > 0; }
+
+bool DirectoryPlaylist::hasNext() const noexcept {
+    return m_currentIndex >= 0 && m_currentIndex + 1 < m_fileNames.size();
+}
+
+bool DirectoryPlaylist::setCurrentIndex(qsizetype index) {
+    if (index < 0 || index >= m_fileNames.size()) {
+        return false;
+    }
+    m_currentIndex = index;
+    return true;
+}
+
+bool DirectoryPlaylist::setCurrentFileName(const QString &fileName) {
+    return setCurrentIndex(m_fileNames.indexOf(fileName));
+}
+
+bool DirectoryPlaylist::movePrevious() {
+    return hasPrevious() && setCurrentIndex(m_currentIndex - 1);
+}
+
+bool DirectoryPlaylist::moveNext() { return hasNext() && setCurrentIndex(m_currentIndex + 1); }
 
 } // namespace radinue

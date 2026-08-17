@@ -26,6 +26,7 @@ class DirectoryPlaylistTest final : public QObject {
     void ignoresSymlinks();
     void sortsDeterministicallyAndReversibly();
     void handlesEmptyAndSingleFileDirectories();
+    void navigatesWithoutWrapping();
     void rejectsMissingDirectory();
 };
 
@@ -118,10 +119,50 @@ void DirectoryPlaylistTest::handlesEmptyAndSingleFileDirectories() {
     radinue::DirectoryPlaylist playlist;
     QVERIFY(playlist.openDirectory(temporaryDirectory.path()));
     QVERIFY(playlist.fileNames().isEmpty());
+    QCOMPARE(playlist.currentIndex(), -1);
+    QVERIFY(playlist.currentFileName().isEmpty());
+    QVERIFY(!playlist.hasPrevious());
+    QVERIFY(!playlist.hasNext());
 
     QVERIFY(createFile(temporaryDirectory.filePath(QStringLiteral("only.opus"))));
     QVERIFY(playlist.openDirectory(temporaryDirectory.path()));
     QCOMPARE(playlist.fileNames(), QStringList({QStringLiteral("only.opus")}));
+    QCOMPARE(playlist.currentIndex(), 0);
+    QCOMPARE(playlist.currentFileName(), QStringLiteral("only.opus"));
+    QVERIFY(!playlist.movePrevious());
+    QVERIFY(!playlist.moveNext());
+}
+
+void DirectoryPlaylistTest::navigatesWithoutWrapping() {
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+    QVERIFY(createFile(temporaryDirectory.filePath(QStringLiteral("a.mp3"))));
+    QVERIFY(createFile(temporaryDirectory.filePath(QStringLiteral("b.mp3"))));
+    QVERIFY(createFile(temporaryDirectory.filePath(QStringLiteral("c.mp3"))));
+
+    radinue::DirectoryPlaylist playlist;
+    QVERIFY(playlist.openDirectory(temporaryDirectory.path()));
+    QCOMPARE(playlist.currentFileName(), QStringLiteral("a.mp3"));
+    QVERIFY(!playlist.hasPrevious());
+    QVERIFY(playlist.hasNext());
+    QVERIFY(!playlist.movePrevious());
+
+    QVERIFY(playlist.moveNext());
+    QCOMPARE(playlist.currentFileName(), QStringLiteral("b.mp3"));
+    QVERIFY(playlist.hasPrevious());
+    QVERIFY(playlist.hasNext());
+
+    QVERIFY(playlist.setCurrentFileName(QStringLiteral("c.mp3")));
+    QCOMPARE(playlist.currentIndex(), 2);
+    QVERIFY(playlist.hasPrevious());
+    QVERIFY(!playlist.hasNext());
+    QVERIFY(!playlist.moveNext());
+    QCOMPARE(playlist.currentFileName(), QStringLiteral("c.mp3"));
+
+    QVERIFY(!playlist.setCurrentIndex(-1));
+    QVERIFY(!playlist.setCurrentIndex(3));
+    QVERIFY(!playlist.setCurrentFileName(QStringLiteral("missing.mp3")));
+    QCOMPARE(playlist.currentIndex(), 2);
 }
 
 void DirectoryPlaylistTest::rejectsMissingDirectory() {

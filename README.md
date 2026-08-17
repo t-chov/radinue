@@ -7,8 +7,8 @@ listening to radio recordings stored in a directory. It remembers the current
 track and playback position so that you can resume exactly where you stopped.
 
 > [!NOTE]
-> Radinue is in the early stages of development. The repository builds a small
-> application shell, but there is no usable player release yet.
+> Radinue is in the early stages of development. Playback controls are available
+> in development builds, but there is no stable player release yet.
 
 ## Current status
 
@@ -16,6 +16,8 @@ track and playback position so that you can resume exactly where you stopped.
 - Filter files through an explicit, case-insensitive extension allowlist
 - Ignore subdirectories, symbolic links, state files, and unsupported files
 - Sort filenames deterministically in ascending or descending order
+- Play or pause, seek by 10 seconds, and move between tracks with icon buttons
+- View and change the playback position with a seek bar
 
 Supported extensions are `.aac`, `.flac`, `.m4a`, `.mka`, `.mp3`, `.ogg`,
 `.opus`, `.wav`, and `.wma`.
@@ -29,8 +31,6 @@ Supported extensions are `.aac`, `.flac`, `.m4a`, `.mka`, `.mp3`, `.ogg`,
 - Change playback speed from 50% to 200% in exact 10% steps, with pitch
   correction
 - Adjust volume from 0% to 200%
-- Use compact controls for previous, rewind 10 seconds, play/pause, forward 10
-  seconds, and next
 - Continue playback gracefully when individual files are malformed or
   unsupported
 
