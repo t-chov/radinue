@@ -43,6 +43,7 @@ class PlayerController final : public QObject {
     void durationChanged(qint64 durationMs);
     void speedChanged(int speedPercent);
     void volumeChanged(int volumePercent);
+    void seekCompleted(qint64 positionMs);
     void endOfFile();
 
   private:

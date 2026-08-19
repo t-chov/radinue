@@ -142,7 +142,11 @@ void PlayerController::seekAbsolute(qint64 positionMs) {
     const QByteArray seconds = QByteArray::number(static_cast<double>(clampedPosition) / 1000.0,
                                                   'f', 3);
     const char *arguments[] = {"seek", seconds.constData(), "absolute+exact", nullptr};
-    sendCommand(arguments);
+    if (sendCommand(arguments)) {
+        m_positionMs = clampedPosition;
+        emit positionChanged(m_positionMs);
+        emit seekCompleted(m_positionMs);
+    }
 }
 
 void PlayerController::setSpeedPercent(int speedPercent) {

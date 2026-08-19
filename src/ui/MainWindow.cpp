@@ -1,6 +1,8 @@
 #include "ui/MainWindow.h"
 
 #include <QComboBox>
+#include <QCloseEvent>
+#include <QDebug>
 #include <QDir>
 #include <QFileDialog>
 #include <QHBoxLayout>
@@ -13,6 +15,7 @@
 #include <QSlider>
 #include <QStandardPaths>
 #include <QStyle>
+#include <QTimer>
 #include <QVBoxLayout>
 #include <QWidget>
 
@@ -173,6 +176,10 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
 
     setCentralWidget(centralWidget);
 
+    m_checkpointTimer = new QTimer(this);
+    m_checkpointTimer->setInterval(10000);
+    m_checkpointTimer->start();
+
     auto *seekBackwardShortcut = new QShortcut(QKeySequence(Qt::Key_Z), this);
     auto *seekForwardShortcut = new QShortcut(QKeySequence(Qt::Key_X), this);
     auto *playPauseShortcut = new QShortcut(QKeySequence(Qt::Key_Space), this);
@@ -224,11 +231,33 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
         m_playPauseButton->setIcon(
             style()->standardIcon(paused ? QStyle::SP_MediaPlay : QStyle::SP_MediaPause));
         m_playPauseButton->setAccessibleName(paused ? tr("Play") : tr("Pause"));
+        if (paused && !m_loadingTrack && m_pendingRestorePositionMs < 0) {
+            persistCurrentState();
+        }
     });
     connect(&m_player, &PlayerController::positionChanged, this, &MainWindow::updatePosition);
     connect(&m_player, &PlayerController::durationChanged, this, &MainWindow::updateDuration);
     connect(&m_player, &PlayerController::speedChanged, this, &MainWindow::updateSpeedDisplay);
     connect(&m_player, &PlayerController::volumeChanged, this, &MainWindow::updateVolumeDisplay);
+    connect(&m_player, &PlayerController::seekCompleted, this,
+            [this](qint64) {
+                if (!m_restoringPosition) {
+                    persistCurrentState();
+                }
+            });
+    connect(&m_player, &PlayerController::fileLoaded, this, [this](const QString &) {
+        if (m_pendingRestorePositionMs > 0) {
+            m_restoringPosition = true;
+            m_player.seekAbsolute(m_pendingRestorePositionMs);
+            m_restoringPosition = false;
+        }
+        m_pendingRestorePositionMs = -1;
+    });
+    connect(m_checkpointTimer, &QTimer::timeout, this, [this] {
+        if (!m_player.isPaused()) {
+            persistCurrentState();
+        }
+    });
     connect(&m_player, &PlayerController::endOfFile, this, &MainWindow::handleEndOfFile);
     connect(&m_player, &PlayerController::errorOccurred, this,
             [this](const QString &message) { m_statusLabel->setText(message); });
@@ -239,14 +268,25 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
 }
 
 bool MainWindow::openDirectory(const QString &directoryPath) {
+    persistCurrentState();
     if (!m_playlist.openDirectory(directoryPath, selectedSortDirection())) {
         QMessageBox::warning(this, tr("Cannot Open Directory"), m_playlist.errorString());
         return false;
     }
 
+    m_pendingRestorePositionMs = -1;
+    const PlaybackStateStore::LoadResult loadResult = m_stateStore.load(directoryPath);
+    qint64 restoredPositionMs = 0;
+    if (loadResult.state && m_playlist.setCurrentFileName(loadResult.state->fileName)) {
+        restoredPositionMs = loadResult.state->positionMs;
+    } else if (loadResult.status == PlaybackStateStore::LoadStatus::Invalid ||
+               loadResult.status == PlaybackStateStore::LoadStatus::ReadError) {
+        qWarning().noquote() << "Could not restore playback state:" << loadResult.errorString;
+    }
+
     updatePlaylistView();
     if (m_playlist.currentIndex() >= 0) {
-        loadCurrentTrack(true);
+        loadCurrentTrack(true, restoredPositionMs, false);
     }
     return true;
 }
@@ -293,9 +333,13 @@ void MainWindow::updatePlaylistView() {
     updateTransportControls();
 }
 
-void MainWindow::loadCurrentTrack(bool paused) {
+void MainWindow::loadCurrentTrack(bool paused, qint64 restorePositionMs, bool persistAfterLoad) {
     const QString filePath = m_playlist.currentFilePath();
-    if (filePath.isEmpty() || !m_player.loadFile(filePath, paused)) {
+    m_pendingRestorePositionMs = restorePositionMs;
+    m_loadingTrack = true;
+    const bool loaded = !filePath.isEmpty() && m_player.loadFile(filePath, paused);
+    m_loadingTrack = false;
+    if (!loaded) {
         updateTransportControls();
         return;
     }
@@ -305,9 +349,13 @@ void MainWindow::loadCurrentTrack(bool paused) {
     m_nowPlayingLabel->setToolTip(fileName);
     m_trackList->setCurrentRow(static_cast<int>(m_playlist.currentIndex()));
     updateTransportControls();
+    if (persistAfterLoad) {
+        persistCurrentState();
+    }
 }
 
 void MainWindow::selectTrack(qsizetype index, bool paused) {
+    persistCurrentState();
     if (m_playlist.setCurrentIndex(index)) {
         loadCurrentTrack(paused);
     }
@@ -322,18 +370,21 @@ void MainWindow::playPause() {
 }
 
 void MainWindow::previousTrack() {
+    persistCurrentState();
     if (m_playlist.movePrevious()) {
         loadCurrentTrack(m_player.isPaused());
     }
 }
 
 void MainWindow::nextTrack() {
+    persistCurrentState();
     if (m_playlist.moveNext()) {
         loadCurrentTrack(m_player.isPaused());
     }
 }
 
 void MainWindow::handleEndOfFile() {
+    persistCurrentState();
     if (m_playlist.moveNext()) {
         loadCurrentTrack(false);
     } else {
@@ -430,6 +481,28 @@ void MainWindow::updateVolumeDisplay(int volumePercent) {
     m_volumeSlider->setValue(effectiveVolume);
     m_volumeValueLabel->setText(tr("%1%").arg(effectiveVolume));
     m_volumeValueLabel->setAccessibleName(tr("Current volume: %1 percent").arg(effectiveVolume));
+}
+
+void MainWindow::persistCurrentState() {
+    if (m_loadingTrack || m_playlist.directoryPath().isEmpty() ||
+        m_playlist.currentFileName().isEmpty()) {
+        return;
+    }
+
+    const PlaybackState state{.fileName = m_playlist.currentFileName(),
+                              .positionMs = qMax<qint64>(0, m_player.positionMs())};
+    if (!m_stateStore.save(m_playlist.directoryPath(), state)) {
+        const QString message =
+            tr("Playback works, but progress cannot be saved in this directory: %1")
+                .arg(m_stateStore.errorString());
+        m_statusLabel->setText(message);
+        qWarning().noquote() << message;
+    }
+}
+
+void MainWindow::closeEvent(QCloseEvent *event) {
+    persistCurrentState();
+    QMainWindow::closeEvent(event);
 }
 
 QString MainWindow::formatTime(qint64 milliseconds) {

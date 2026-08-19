@@ -20,6 +20,8 @@ track and playback position so that you can resume exactly where you stopped.
 - View and change the playback position with a seek bar
 - Change playback speed from 50% to 200% in exact 10% steps, with pitch correction
 - Adjust volume from 0% to 200%; values above 100% use software amplification
+- Atomically save the current track and position to `.radinue-state.json` in the
+  playlist directory and restore them when that directory is reopened
 
 Supported extensions are `.aac`, `.flac`, `.m4a`, `.mka`, `.mp3`, `.ogg`,
 `.opus`, `.wav`, and `.wma`.
@@ -27,9 +29,6 @@ Supported extensions are `.aac`, `.flac`, `.m4a`, `.mka`, `.mp3`, `.ogg`,
 ## Planned playback features
 
 - Automatically advance to the next track without wrapping at playlist ends
-- Save the current track and position in a human-readable file inside the
-  playlist directory
-- Restore playback from the saved position when the directory is opened again
 - Continue playback gracefully when individual files are malformed or
   unsupported
 

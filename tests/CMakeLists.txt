@@ -9,3 +9,9 @@ target_link_libraries(directory_playlist_test PRIVATE radinue_core Qt6::Test)
 radinue_set_warnings(directory_playlist_test)
 
 add_test(NAME directory_playlist COMMAND directory_playlist_test)
+
+qt_add_executable(playback_state_store_test PlaybackStateStoreTest.cpp)
+target_link_libraries(playback_state_store_test PRIVATE radinue_core Qt6::Test)
+radinue_set_warnings(playback_state_store_test)
+
+add_test(NAME playback_state_store COMMAND playback_state_store_test)

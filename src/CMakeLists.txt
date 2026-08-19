@@ -4,6 +4,8 @@ add_library(
     core/DirectoryPlaylist.h
     core/PlaybackSettings.cpp
     core/PlaybackSettings.h
+    core/PlaybackStateStore.cpp
+    core/PlaybackStateStore.h
 )
 target_include_directories(radinue_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(radinue_core PUBLIC Qt6::Core)
