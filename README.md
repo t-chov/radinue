@@ -112,6 +112,11 @@ The intended supported platforms are:
 GitHub Actions builds the application and runs the tests on both platforms for
 every pull request and every push to `main`.
 
+Pushing a Git tag builds release packages for Windows amd64 and macOS Apple
+Silicon and publishes them to the tag's GitHub Release. The macOS package is
+currently ad-hoc signed because signing and notarization credentials are not
+configured in the repository.
+
 ## Contributing
 
 Radinue prioritizes stability, predictable behavior, and a small maintenance

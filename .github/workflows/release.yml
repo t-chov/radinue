@@ -1,0 +1,158 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "*"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+env:
+  QT_VERSION: 6.8.3
+
+jobs:
+  windows:
+    name: Windows (amd64)
+    runs-on: windows-2022
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          cache: true
+
+      - name: Install libmpv
+        shell: pwsh
+        run: |
+          cmake -DOUTPUT_DIR="${{ github.workspace }}/.deps/mpv" -P cmake/DownloadMpvWindows.cmake
+          ./scripts/CreateMpvImportLibrary.ps1 -MpvRoot "${{ github.workspace }}/.deps/mpv"
+
+      - name: Configure
+        run: cmake --preset ci-windows-release
+
+      - name: Build
+        run: cmake --build --preset ci-windows-release --parallel
+
+      - name: Test
+        run: ctest --preset ci-windows-release
+
+      - name: Package
+        shell: pwsh
+        run: |
+          $packageDirectory = "dist/Radinue"
+          New-Item -ItemType Directory -Force -Path $packageDirectory | Out-Null
+          Copy-Item "build/ci-windows-release/src/Release/radinue.exe" $packageDirectory
+          Copy-Item ".deps/mpv/libmpv-2.dll" $packageDirectory
+          Copy-Item "LICENSE", "THIRD_PARTY_NOTICES.md", "README.md", "README-ja.md" $packageDirectory
+          windeployqt --release --no-translations --compiler-runtime "$packageDirectory/radinue.exe"
+          Compress-Archive -Path $packageDirectory -DestinationPath "dist/Radinue-windows-amd64.zip"
+
+      - name: Upload package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Radinue-windows-amd64
+          path: dist/Radinue-windows-amd64.zip
+          if-no-files-found: error
+
+  macos:
+    name: macOS (Apple Silicon)
+    runs-on: macos-15
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install Qt
+        uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
+        with:
+          version: ${{ env.QT_VERSION }}
+          cache: true
+
+      - name: Install build dependencies
+        run: brew install mpv ninja
+
+      - name: Configure
+        run: cmake --preset ci-macos-release
+
+      - name: Build
+        run: cmake --build --preset ci-macos-release --parallel
+
+      - name: Test
+        run: ctest --preset ci-macos-release
+
+      - name: Package
+        shell: bash
+        run: |
+          set -euo pipefail
+          package_root="dist/dmg-root"
+          app_bundle="$package_root/Radinue.app"
+          mkdir -p "$package_root"
+          ditto build/ci-macos-release/src/radinue.app "$app_bundle"
+          cp LICENSE THIRD_PARTY_NOTICES.md README.md README-ja.md "$package_root"
+          ln -s /Applications "$package_root/Applications"
+          macdeployqt "$app_bundle" -always-overwrite -no-strip
+          cmake \
+            -DAPP_BUNDLE="$PWD/$app_bundle" \
+            -DSEARCH_DIRS="$(brew --prefix)/lib;$(brew --prefix mpv)/lib" \
+            -P cmake/DeployMacOS.cmake
+          codesign --force --deep --sign - "$app_bundle"
+          codesign --verify --deep --strict --verbose=2 "$app_bundle"
+          file "$app_bundle/Contents/MacOS/radinue" | grep -q arm64
+          hdiutil create \
+            -volname Radinue \
+            -srcfolder "$package_root" \
+            -format UDZO \
+            -ov \
+            dist/Radinue-macos-arm64.dmg
+
+      - name: Upload package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: Radinue-macos-arm64
+          path: dist/Radinue-macos-arm64.dmg
+          if-no-files-found: error
+
+  publish:
+    name: Publish GitHub Release
+    needs: [windows, macos]
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: write
+
+    steps:
+      - name: Download packages
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          pattern: Radinue-*
+          path: dist
+          merge-multiple: true
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" dist/* --clobber
+          else
+            gh release create "$RELEASE_TAG" dist/* \
+              --verify-tag \
+              --generate-notes \
+              --title "$RELEASE_TAG"
+          fi

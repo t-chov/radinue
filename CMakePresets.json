@@ -52,6 +52,26 @@
       "cacheVariables": {
         "CMAKE_PREFIX_PATH": "${sourceDir}/.deps/mpv"
       }
+    },
+    {
+      "name": "ci-macos-release",
+      "displayName": "macOS Apple Silicon release",
+      "inherits": "base",
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "CMAKE_OSX_ARCHITECTURES": "arm64"
+      }
+    },
+    {
+      "name": "ci-windows-release",
+      "displayName": "Windows amd64 release",
+      "inherits": "base",
+      "generator": "Visual Studio 17 2022",
+      "architecture": "x64",
+      "cacheVariables": {
+        "CMAKE_PREFIX_PATH": "${sourceDir}/.deps/mpv"
+      }
     }
   ],
   "buildPresets": [
@@ -71,6 +91,15 @@
       "name": "ci-windows",
       "configurePreset": "ci-windows",
       "configuration": "Debug"
+    },
+    {
+      "name": "ci-macos-release",
+      "configurePreset": "ci-macos-release"
+    },
+    {
+      "name": "ci-windows-release",
+      "configurePreset": "ci-windows-release",
+      "configuration": "Release"
     }
   ],
   "testPresets": [
@@ -99,6 +128,21 @@
       "name": "ci-windows",
       "configurePreset": "ci-windows",
       "configuration": "Debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-macos-release",
+      "configurePreset": "ci-macos-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "ci-windows-release",
+      "configurePreset": "ci-windows-release",
+      "configuration": "Release",
       "output": {
         "outputOnFailure": true
       }
