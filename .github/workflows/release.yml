@@ -108,9 +108,23 @@ jobs:
             -DAPP_BUNDLE="$PWD/$app_bundle" \
             -DSEARCH_DIRS="$QT_ROOT_DIR/lib;$(brew --prefix)/lib;$(brew --prefix mpv)/lib" \
             -P cmake/DeployMacOS.cmake
+          bash scripts/FixMacOSPluginPaths.sh "$app_bundle"
           codesign --force --deep --sign - "$app_bundle"
           codesign --verify --deep --strict --verbose=2 "$app_bundle"
           file "$app_bundle/Contents/MacOS/radinue" | grep -q arm64
+
+          smoke_log="$RUNNER_TEMP/radinue-smoke-test.log"
+          QT_DEBUG_PLUGINS=1 "$app_bundle/Contents/MacOS/radinue" >"$smoke_log" 2>&1 &
+          app_pid=$!
+          sleep 3
+          if ! kill -0 "$app_pid" 2>/dev/null; then
+            cat "$smoke_log"
+            wait "$app_pid" || true
+            exit 1
+          fi
+          kill "$app_pid"
+          wait "$app_pid" || true
+
           hdiutil create \
             -volname Radinue \
             -srcfolder "$package_root" \
