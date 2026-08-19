@@ -52,7 +52,7 @@ jobs:
         run: |
           $packageDirectory = "dist/Radinue"
           New-Item -ItemType Directory -Force -Path $packageDirectory | Out-Null
-          Copy-Item "build/ci-windows-release/src/Release/radinue.exe" $packageDirectory
+          Copy-Item "build/ci-windows-release/Release/radinue.exe" $packageDirectory
           Copy-Item ".deps/mpv/libmpv-2.dll" $packageDirectory
           Copy-Item "LICENSE", "THIRD_PARTY_NOTICES.md", "README.md", "README-ja.md" $packageDirectory
           windeployqt --release --no-translations --compiler-runtime "$packageDirectory/radinue.exe"
@@ -106,7 +106,7 @@ jobs:
           macdeployqt "$app_bundle" -always-overwrite -no-strip
           cmake \
             -DAPP_BUNDLE="$PWD/$app_bundle" \
-            -DSEARCH_DIRS="$(brew --prefix)/lib;$(brew --prefix mpv)/lib" \
+            -DSEARCH_DIRS="$QT_ROOT_DIR/lib;$(brew --prefix)/lib;$(brew --prefix mpv)/lib" \
             -P cmake/DeployMacOS.cmake
           codesign --force --deep --sign - "$app_bundle"
           codesign --verify --deep --strict --verbose=2 "$app_bundle"
