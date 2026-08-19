@@ -186,6 +186,12 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
     auto *decreaseSpeedShortcut = new QShortcut(QKeySequence(Qt::Key_S), this);
     auto *increaseSpeedShortcut = new QShortcut(QKeySequence(Qt::Key_D), this);
     auto *resetSpeedShortcut = new QShortcut(QKeySequence(Qt::Key_G), this);
+    seekBackwardShortcut->setObjectName(QStringLiteral("seekBackwardShortcut"));
+    seekForwardShortcut->setObjectName(QStringLiteral("seekForwardShortcut"));
+    playPauseShortcut->setObjectName(QStringLiteral("playPauseShortcut"));
+    decreaseSpeedShortcut->setObjectName(QStringLiteral("decreaseSpeedShortcut"));
+    increaseSpeedShortcut->setObjectName(QStringLiteral("increaseSpeedShortcut"));
+    resetSpeedShortcut->setObjectName(QStringLiteral("resetSpeedShortcut"));
 
     connect(chooseDirectoryButton, &QPushButton::clicked, this, &MainWindow::chooseDirectory);
     connect(m_sortOrderCombo, &QComboBox::currentIndexChanged, this, &MainWindow::reloadDirectory);

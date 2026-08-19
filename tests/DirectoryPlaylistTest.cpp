@@ -26,6 +26,7 @@ class DirectoryPlaylistTest final : public QObject {
     void ignoresSymlinks();
     void sortsDeterministicallyAndReversibly();
     void handlesEmptyAndSingleFileDirectories();
+    void keepsFirstTrackWhenSavedTrackIsMissing();
     void navigatesWithoutWrapping();
     void rejectsMissingDirectory();
 };
@@ -131,6 +132,20 @@ void DirectoryPlaylistTest::handlesEmptyAndSingleFileDirectories() {
     QCOMPARE(playlist.currentFileName(), QStringLiteral("only.opus"));
     QVERIFY(!playlist.movePrevious());
     QVERIFY(!playlist.moveNext());
+}
+
+void DirectoryPlaylistTest::keepsFirstTrackWhenSavedTrackIsMissing() {
+    QTemporaryDir temporaryDirectory;
+    QVERIFY(temporaryDirectory.isValid());
+    QVERIFY(createFile(temporaryDirectory.filePath(QStringLiteral("a.mp3"))));
+    QVERIFY(createFile(temporaryDirectory.filePath(QStringLiteral("b.mp3"))));
+
+    radinue::DirectoryPlaylist playlist;
+    QVERIFY(playlist.openDirectory(temporaryDirectory.path()));
+
+    QVERIFY(!playlist.setCurrentFileName(QStringLiteral("removed.mp3")));
+    QCOMPARE(playlist.currentIndex(), 0);
+    QCOMPARE(playlist.currentFileName(), QStringLiteral("a.mp3"));
 }
 
 void DirectoryPlaylistTest::navigatesWithoutWrapping() {

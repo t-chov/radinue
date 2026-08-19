@@ -17,6 +17,7 @@ track and playback position so that you can resume exactly where you stopped.
 - Ignore subdirectories, symbolic links, state files, and unsupported files
 - Sort filenames deterministically in ascending or descending order
 - Play or pause, seek by 10 seconds, and move between tracks with icon buttons
+- Automatically advance at the end of a track without wrapping at the playlist end
 - View and change the playback position with a seek bar
 - Change playback speed from 50% to 200% in exact 10% steps, with pitch correction
 - Adjust volume from 0% to 200%; values above 100% use software amplification
@@ -26,11 +27,10 @@ track and playback position so that you can resume exactly where you stopped.
 Supported extensions are `.aac`, `.flac`, `.m4a`, `.mka`, `.mp3`, `.ogg`,
 `.opus`, `.wav`, and `.wma`.
 
-## Planned playback features
+## Current limitations
 
-- Automatically advance to the next track without wrapping at playlist ends
-- Continue playback gracefully when individual files are malformed or
-  unsupported
+- If a malformed or unsupported file fails to play, Radinue displays the error
+  and remains usable, but it does not automatically skip to the next playable file.
 
 Radinue deliberately focuses on reliable local playback. It does not aim to
 provide library management, streaming, podcast feeds, shuffle, repeat,

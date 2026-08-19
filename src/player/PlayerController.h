@@ -26,6 +26,8 @@ class PlayerController final : public QObject {
     [[nodiscard]] qint64 durationMs() const noexcept;
     [[nodiscard]] int speedPercent() const noexcept;
     [[nodiscard]] int volumePercent() const noexcept;
+    [[nodiscard]] static qint64 clampedSeekPosition(qint64 requestedPositionMs,
+                                                    qint64 durationMs) noexcept;
 
     bool loadFile(const QString &filePath, bool paused = true);
     void togglePause();

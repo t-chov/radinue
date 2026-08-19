@@ -11,16 +11,19 @@ target_include_directories(radinue_core PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
 target_link_libraries(radinue_core PUBLIC Qt6::Core)
 radinue_set_warnings(radinue_core)
 
-qt_add_executable(
-    radinue
-    main.cpp
+add_library(
+    radinue_app STATIC
     player/PlayerController.cpp
     player/PlayerController.h
     ui/MainWindow.cpp
     ui/MainWindow.h
 )
+target_include_directories(radinue_app PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(radinue_app PUBLIC radinue_core Qt6::Widgets Mpv::Mpv)
+radinue_set_warnings(radinue_app)
 
-target_link_libraries(radinue PRIVATE radinue_core Qt6::Widgets Mpv::Mpv)
+qt_add_executable(radinue main.cpp)
+target_link_libraries(radinue PRIVATE radinue_app)
 radinue_set_warnings(radinue)
 
 if(WIN32)

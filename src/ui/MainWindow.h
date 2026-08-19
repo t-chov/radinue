@@ -27,6 +27,9 @@ class MainWindow final : public QMainWindow {
   protected:
     void closeEvent(QCloseEvent *event) override;
 
+  private slots:
+    void handleEndOfFile();
+
   private:
     void chooseDirectory();
     void reloadDirectory();
@@ -37,7 +40,6 @@ class MainWindow final : public QMainWindow {
     void playPause();
     void previousTrack();
     void nextTrack();
-    void handleEndOfFile();
     void updateTransportControls();
     void updatePosition(qint64 positionMs);
     void updateDuration(qint64 durationMs);

@@ -89,6 +89,12 @@ int PlayerController::speedPercent() const noexcept { return m_speedPercent; }
 
 int PlayerController::volumePercent() const noexcept { return m_volumePercent; }
 
+qint64 PlayerController::clampedSeekPosition(qint64 requestedPositionMs,
+                                             qint64 durationMs) noexcept {
+    const qint64 upperBound = durationMs > 0 ? durationMs : qMax<qint64>(0, requestedPositionMs);
+    return qBound<qint64>(0, requestedPositionMs, upperBound);
+}
+
 bool PlayerController::loadFile(const QString &filePath, bool paused) {
     if (m_mpv == nullptr || filePath.isEmpty()) {
         return false;
@@ -137,8 +143,7 @@ void PlayerController::seekAbsolute(qint64 positionMs) {
         return;
     }
 
-    const qint64 upperBound = m_durationMs > 0 ? m_durationMs : positionMs;
-    const qint64 clampedPosition = qBound<qint64>(0, positionMs, qMax<qint64>(0, upperBound));
+    const qint64 clampedPosition = clampedSeekPosition(positionMs, m_durationMs);
     const QByteArray seconds = QByteArray::number(static_cast<double>(clampedPosition) / 1000.0,
                                                   'f', 3);
     const char *arguments[] = {"seek", seconds.constData(), "absolute+exact", nullptr};

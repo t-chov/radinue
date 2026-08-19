@@ -15,3 +15,15 @@ target_link_libraries(playback_state_store_test PRIVATE radinue_core Qt6::Test)
 radinue_set_warnings(playback_state_store_test)
 
 add_test(NAME playback_state_store COMMAND playback_state_store_test)
+
+qt_add_executable(player_controller_test PlayerControllerTest.cpp)
+target_link_libraries(player_controller_test PRIVATE radinue_app Qt6::Test)
+radinue_set_warnings(player_controller_test)
+
+add_test(NAME player_controller COMMAND player_controller_test)
+
+qt_add_executable(main_window_test MainWindowTest.cpp)
+target_link_libraries(main_window_test PRIVATE radinue_app Qt6::Test)
+radinue_set_warnings(main_window_test)
+
+add_test(NAME main_window COMMAND main_window_test)
