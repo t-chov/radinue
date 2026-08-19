@@ -114,7 +114,9 @@ jobs:
           file "$app_bundle/Contents/MacOS/radinue" | grep -q arm64
 
           smoke_log="$RUNNER_TEMP/radinue-smoke-test.log"
-          QT_DEBUG_PLUGINS=1 "$app_bundle/Contents/MacOS/radinue" >"$smoke_log" 2>&1 &
+          env -u QT_PLUGIN_PATH -u QML2_IMPORT_PATH \
+            QT_DEBUG_PLUGINS=1 \
+            "$app_bundle/Contents/MacOS/radinue" >"$smoke_log" 2>&1 &
           app_pid=$!
           sleep 3
           if ! kill -0 "$app_pid" 2>/dev/null; then
