@@ -29,13 +29,24 @@ radinue_set_warnings(main_window_test)
 add_test(NAME main_window COMMAND main_window_test)
 
 if(WIN32)
+    add_library(radinue_test_vulkan_stub SHARED windows/VulkanStub.cpp)
+    set_target_properties(
+        radinue_test_vulkan_stub
+        PROPERTIES OUTPUT_NAME "vulkan-1" WINDOWS_EXPORT_ALL_SYMBOLS ON
+    )
+    radinue_set_warnings(radinue_test_vulkan_stub)
+
     foreach(test_target IN ITEMS player_controller_test main_window_test)
+        add_dependencies(${test_target} radinue_test_vulkan_stub)
         add_custom_command(
             TARGET ${test_target}
             POST_BUILD
             COMMAND
                 "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:Mpv::Mpv>"
                 "$<TARGET_FILE_DIR:${test_target}>"
+            COMMAND
+                "${CMAKE_COMMAND}" -E copy_if_different
+                "$<TARGET_FILE:radinue_test_vulkan_stub>" "$<TARGET_FILE_DIR:${test_target}>"
             VERBATIM
         )
     endforeach()
