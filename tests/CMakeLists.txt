@@ -27,3 +27,16 @@ target_link_libraries(main_window_test PRIVATE radinue_app Qt6::Test)
 radinue_set_warnings(main_window_test)
 
 add_test(NAME main_window COMMAND main_window_test)
+
+if(WIN32)
+    foreach(test_target IN ITEMS player_controller_test main_window_test)
+        add_custom_command(
+            TARGET ${test_target}
+            POST_BUILD
+            COMMAND
+                "${CMAKE_COMMAND}" -E copy_if_different "$<TARGET_FILE:Mpv::Mpv>"
+                "$<TARGET_FILE_DIR:${test_target}>"
+            VERBATIM
+        )
+    endforeach()
+endif()
