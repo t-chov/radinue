@@ -39,6 +39,7 @@ class PlayerController final : public QObject {
 
   signals:
     void errorOccurred(const QString &message);
+    void playbackFailed(const QString &filePath, const QString &message);
     void fileLoaded(const QString &filePath);
     void pauseChanged(bool paused);
     void positionChanged(qint64 positionMs);

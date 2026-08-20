@@ -169,6 +169,7 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
     mainLayout->addLayout(speedLayout);
 
     m_statusLabel = new QLabel(centralWidget);
+    m_statusLabel->setObjectName(QStringLiteral("statusLabel"));
     m_statusLabel->setAccessibleName(tr("Playlist status"));
     m_statusLabel->setText(m_player.isAvailable() ? tr("Choose a directory to begin.")
                                                   : tr("Audio playback is unavailable."));
@@ -197,14 +198,17 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
     connect(m_sortOrderCombo, &QComboBox::currentIndexChanged, this, &MainWindow::reloadDirectory);
     connect(m_trackList, &QListWidget::currentRowChanged, this, [this](int row) {
         if (row >= 0 && row != m_playlist.currentIndex()) {
-            selectTrack(row, m_player.isPaused());
+            selectTrack(row, !m_playbackRequested);
         }
     });
     connect(m_trackList, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *item) {
         const qsizetype index = m_trackList->row(item);
         if (index != m_playlist.currentIndex()) {
             selectTrack(index, false);
+        } else if (!m_currentTrackLoaded) {
+            loadCurrentTrack(false);
         } else {
+            m_playbackRequested = true;
             m_player.setPaused(false);
         }
     });
@@ -237,7 +241,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
         m_playPauseButton->setIcon(
             style()->standardIcon(paused ? QStyle::SP_MediaPlay : QStyle::SP_MediaPause));
         m_playPauseButton->setAccessibleName(paused ? tr("Play") : tr("Pause"));
-        if (paused && !m_loadingTrack && m_pendingRestorePositionMs < 0) {
+        if (paused && m_currentTrackLoaded && !m_loadingTrack &&
+            m_pendingRestorePositionMs < 0) {
             persistCurrentState();
         }
     });
@@ -251,13 +256,21 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
                     persistCurrentState();
                 }
             });
-    connect(&m_player, &PlayerController::fileLoaded, this, [this](const QString &) {
+    connect(&m_player, &PlayerController::fileLoaded, this, [this](const QString &filePath) {
+        if (filePath != m_playlist.currentFilePath()) {
+            return;
+        }
+        m_currentTrackLoaded = true;
         if (m_pendingRestorePositionMs > 0) {
             m_restoringPosition = true;
             m_player.seekAbsolute(m_pendingRestorePositionMs);
             m_restoringPosition = false;
         }
         m_pendingRestorePositionMs = -1;
+        if (m_persistAfterCurrentLoad) {
+            persistCurrentState();
+        }
+        m_persistAfterCurrentLoad = false;
     });
     connect(m_checkpointTimer, &QTimer::timeout, this, [this] {
         if (!m_player.isPaused()) {
@@ -265,6 +278,8 @@ MainWindow::MainWindow(QWidget *parent) : QMainWindow(parent), m_player(this) {
         }
     });
     connect(&m_player, &PlayerController::endOfFile, this, &MainWindow::handleEndOfFile);
+    connect(&m_player, &PlayerController::playbackFailed, this,
+            &MainWindow::handlePlaybackFailure);
     connect(&m_player, &PlayerController::errorOccurred, this,
             [this](const QString &message) { m_statusLabel->setText(message); });
 
@@ -342,11 +357,17 @@ void MainWindow::updatePlaylistView() {
 void MainWindow::loadCurrentTrack(bool paused, qint64 restorePositionMs, bool persistAfterLoad) {
     const QString filePath = m_playlist.currentFilePath();
     m_pendingRestorePositionMs = restorePositionMs;
+    m_persistAfterCurrentLoad = persistAfterLoad;
+    m_currentTrackLoaded = false;
+    m_playbackRequested = !paused;
     m_loadingTrack = true;
     const bool loaded = !filePath.isEmpty() && m_player.loadFile(filePath, paused);
     m_loadingTrack = false;
     if (!loaded) {
+        m_pendingRestorePositionMs = -1;
+        m_persistAfterCurrentLoad = false;
         updateTransportControls();
+        handlePlaybackFailure(filePath, tr("The track could not be loaded."));
         return;
     }
 
@@ -355,9 +376,6 @@ void MainWindow::loadCurrentTrack(bool paused, qint64 restorePositionMs, bool pe
     m_nowPlayingLabel->setToolTip(fileName);
     m_trackList->setCurrentRow(static_cast<int>(m_playlist.currentIndex()));
     updateTransportControls();
-    if (persistAfterLoad) {
-        persistCurrentState();
-    }
 }
 
 void MainWindow::selectTrack(qsizetype index, bool paused) {
@@ -368,9 +386,15 @@ void MainWindow::selectTrack(qsizetype index, bool paused) {
 }
 
 void MainWindow::playPause() {
-    if (!m_player.hasFile()) {
-        loadCurrentTrack(false);
+    if (!m_currentTrackLoaded) {
+        if (m_playbackRequested) {
+            m_playbackRequested = false;
+            m_player.setPaused(true);
+        } else {
+            loadCurrentTrack(false);
+        }
     } else {
+        m_playbackRequested = m_player.isPaused();
         m_player.togglePause();
     }
 }
@@ -378,14 +402,14 @@ void MainWindow::playPause() {
 void MainWindow::previousTrack() {
     persistCurrentState();
     if (m_playlist.movePrevious()) {
-        loadCurrentTrack(m_player.isPaused());
+        loadCurrentTrack(!m_playbackRequested);
     }
 }
 
 void MainWindow::nextTrack() {
     persistCurrentState();
     if (m_playlist.moveNext()) {
-        loadCurrentTrack(m_player.isPaused());
+        loadCurrentTrack(!m_playbackRequested);
     }
 }
 
@@ -394,15 +418,40 @@ void MainWindow::handleEndOfFile() {
     if (m_playlist.moveNext()) {
         loadCurrentTrack(false);
     } else {
+        m_playbackRequested = false;
         m_player.setPaused(true);
         updateTransportControls();
     }
 }
 
+void MainWindow::handlePlaybackFailure(const QString &filePath, const QString &message) {
+    if (filePath.isEmpty() || filePath != m_playlist.currentFilePath()) {
+        return;
+    }
+
+    const QString failedFileName = m_playlist.currentFileName();
+    qWarning().noquote() << "Playback failed for" << failedFileName << ':' << message;
+    m_currentTrackLoaded = false;
+    m_pendingRestorePositionMs = -1;
+    m_persistAfterCurrentLoad = false;
+
+    if (m_playbackRequested && m_playlist.moveNext()) {
+        m_statusLabel->setText(
+            tr("Could not play \"%1\". Trying the next track.").arg(failedFileName));
+        loadCurrentTrack(false);
+        return;
+    }
+
+    m_playbackRequested = false;
+    m_statusLabel->setText(tr("Could not play \"%1\".").arg(failedFileName));
+    m_player.setPaused(true);
+    updateTransportControls();
+}
+
 void MainWindow::updateTransportControls() {
     const bool playbackAvailable = m_player.isAvailable();
     const bool hasTrack = m_playlist.currentIndex() >= 0;
-    const bool canSeek = playbackAvailable && m_player.hasFile();
+    const bool canSeek = playbackAvailable && m_currentTrackLoaded;
     m_previousButton->setEnabled(playbackAvailable && m_playlist.hasPrevious());
     m_seekBackwardButton->setEnabled(canSeek);
     m_playPauseButton->setEnabled(playbackAvailable && hasTrack);
@@ -490,7 +539,7 @@ void MainWindow::updateVolumeDisplay(int volumePercent) {
 }
 
 void MainWindow::persistCurrentState() {
-    if (m_loadingTrack || m_playlist.directoryPath().isEmpty() ||
+    if (m_loadingTrack || !m_currentTrackLoaded || m_playlist.directoryPath().isEmpty() ||
         m_playlist.currentFileName().isEmpty()) {
         return;
     }

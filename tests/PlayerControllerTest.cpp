@@ -1,5 +1,7 @@
 #include "player/PlayerController.h"
 
+#include <QSignalSpy>
+#include <QTemporaryDir>
 #include <QTest>
 
 class PlayerControllerTest final : public QObject {
@@ -8,6 +10,7 @@ class PlayerControllerTest final : public QObject {
   private slots:
     void clampsSeekPositions_data();
     void clampsSeekPositions();
+    void reportsPlaybackFailureForUnreadableFile();
 };
 
 void PlayerControllerTest::clampsSeekPositions_data() {
@@ -31,6 +34,22 @@ void PlayerControllerTest::clampsSeekPositions() {
              expectedPositionMs);
 }
 
-QTEST_APPLESS_MAIN(PlayerControllerTest)
+void PlayerControllerTest::reportsPlaybackFailureForUnreadableFile() {
+    QTemporaryDir directory;
+    QVERIFY(directory.isValid());
+    const QString filePath = directory.filePath(QStringLiteral("missing.mp3"));
+
+    radinue::PlayerController player;
+    QVERIFY(player.isAvailable());
+    QSignalSpy failureSpy(&player, &radinue::PlayerController::playbackFailed);
+    QVERIFY(player.loadFile(filePath, false));
+
+    QTRY_COMPARE_WITH_TIMEOUT(failureSpy.count(), 1, 5000);
+    QCOMPARE(failureSpy.first().at(0).toString(), filePath);
+    QVERIFY(!failureSpy.first().at(1).toString().isEmpty());
+    QVERIFY(!player.hasFile());
+}
+
+QTEST_GUILESS_MAIN(PlayerControllerTest)
 
 #include "PlayerControllerTest.moc"

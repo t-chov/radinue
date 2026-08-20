@@ -29,6 +29,7 @@ class MainWindow final : public QMainWindow {
 
   private slots:
     void handleEndOfFile();
+    void handlePlaybackFailure(const QString &filePath, const QString &message);
 
   private:
     void chooseDirectory();
@@ -82,6 +83,9 @@ class MainWindow final : public QMainWindow {
     qint64 m_durationMs = 0;
     qint64 m_pendingRestorePositionMs = -1;
     bool m_loadingTrack = false;
+    bool m_currentTrackLoaded = false;
+    bool m_playbackRequested = false;
+    bool m_persistAfterCurrentLoad = false;
     bool m_restoringPosition = false;
 };
 

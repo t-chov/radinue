@@ -211,7 +211,18 @@ void PlayerController::processEvents() {
             if (endFile->reason == MPV_END_FILE_REASON_EOF) {
                 emit endOfFile();
             } else if (endFile->reason == MPV_END_FILE_REASON_ERROR) {
-                reportMpvError(tr("play the audio file"), endFile->error);
+                const QString failedFilePath = m_filePath;
+                const QString message =
+                    tr("Could not play the audio file: %1")
+                        .arg(QString::fromUtf8(mpv_error_string(endFile->error)));
+                m_filePath.clear();
+                m_positionMs = 0;
+                m_durationMs = 0;
+                qWarning().noquote() << message;
+                emit positionChanged(0);
+                emit durationChanged(0);
+                emit errorOccurred(message);
+                emit playbackFailed(failedFilePath, message);
             }
             continue;
         }
