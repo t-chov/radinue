@@ -4,14 +4,21 @@
 #include <QTemporaryDir>
 #include <QTest>
 
+#include <clocale>
+
 class PlayerControllerTest final : public QObject {
     Q_OBJECT
 
   private slots:
+    void initTestCase();
     void clampsSeekPositions_data();
     void clampsSeekPositions();
     void reportsPlaybackFailureForUnreadableFile();
 };
+
+void PlayerControllerTest::initTestCase() {
+    QVERIFY(std::setlocale(LC_NUMERIC, "C") != nullptr);
+}
 
 void PlayerControllerTest::clampsSeekPositions_data() {
     QTest::addColumn<qint64>("requestedPositionMs");
